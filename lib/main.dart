@@ -49,7 +49,7 @@ class _ImageScreenState extends State<ImageScreen> {
       List<String> keys = [
         "brightness","contrast","saturation","fading","exposure","highlights",
         "shadows","vibrance","temperature","hue","sharpness","vignette","enhance",
-        "dehaze","ambiance","noise","colorNoise","innerSpotlight","outerSpotlight"
+        "dehaze","ambiance","noise","colorNoise","innerSpotlight","outerSpotlight","tint"
       ];
       for (var k in keys) sliders[k] = 0.0;
     }
@@ -99,7 +99,7 @@ class _ImageScreenState extends State<ImageScreen> {
     if (_image == null || _isProcessing) return;
     setState(() => _isProcessing = true);
 
-    String url = "http://192.168.253.4:5000/edit";
+    String url = "http://192.168.1.3:5000/edit";
 
     try {
       Uri uri = Uri.parse(url);
@@ -129,7 +129,7 @@ class _ImageScreenState extends State<ImageScreen> {
   // GET API Call
   // -------------------------
   Future<void> getFromApi() async {
-    String url = "http://192.168.253.4:5000/edit";
+    String url = "http://192.168.1.3:5000/edit";
     try {
       var response = await http.get(Uri.parse(url)).timeout(Duration(seconds: 10));
       showSnack(response.statusCode == 200
