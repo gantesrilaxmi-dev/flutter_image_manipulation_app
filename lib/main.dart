@@ -99,7 +99,7 @@ class _ImageScreenState extends State<ImageScreen> {
     if (_image == null || _isProcessing) return;
     setState(() => _isProcessing = true);
 
-    String url = "http://192.168.1.3:5000/edit";
+    String url = "http://192.168.208.4:5000/edit";
 
     try {
       Uri uri = Uri.parse(url);
@@ -129,7 +129,7 @@ class _ImageScreenState extends State<ImageScreen> {
   // GET API Call
   // -------------------------
   Future<void> getFromApi() async {
-    String url = "http://192.168.1.3:5000/edit";
+    String url = "http://192.168.208.4:5000/edit";
     try {
       var response = await http.get(Uri.parse(url)).timeout(Duration(seconds: 10));
       showSnack(response.statusCode == 200
