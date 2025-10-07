@@ -106,10 +106,17 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_lints
+<<<<<<< HEAD
       sha256: a25a15ebbdfc33ab1cd26c63a6ee519df92338a9c10f122adda92938253bef04
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
+=======
+      sha256: "5398f14efa795ffb7a33e9b6a08798b26a180edac4ad7db3f231e40f82ce11e1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.0"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -144,14 +151,32 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+<<<<<<< HEAD
+=======
+  image_gallery_saver:
+    dependency: "direct main"
+    description:
+      name: image_gallery_saver
+      sha256: "0aba74216a4d9b0561510cb968015d56b701ba1bd94aace26aacdd8ae5761816"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   image_picker:
     dependency: "direct main"
     description:
       name: image_picker
+<<<<<<< HEAD
       sha256: "736eb56a911cf24d1859315ad09ddec0b66104bc41a7f8c5b96b4e2620cf5041"
       url: "https://pub.dev"
     source: hosted
     version: "1.2.0"
+=======
+      sha256: b6951e25b795d053a6ba03af5f710069c99349de9341af95155d52665cb4607c
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.8.9"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   image_picker_android:
     dependency: transitive
     description:
@@ -164,10 +189,17 @@ packages:
     dependency: transitive
     description:
       name: image_picker_for_web
+<<<<<<< HEAD
       sha256: "40c2a6a0da15556dc0f8e38a3246064a971a9f512386c3339b89f76db87269b6"
       url: "https://pub.dev"
     source: hosted
     version: "3.1.0"
+=======
+      sha256: "869fe8a64771b7afbc99fc433a5f7be2fea4d1cb3d7c11a48b6b579eb9c797f0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.0"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   image_picker_ios:
     dependency: transitive
     description:
@@ -236,10 +268,17 @@ packages:
     dependency: transitive
     description:
       name: lints
+<<<<<<< HEAD
       sha256: "0a217c6c989d21039f1498c3ed9f3ed71b354e69873f13a8dfc3c9fe76f1b452"
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+=======
+      sha256: c35bb79562d980e9a453fc715854e1ed39e24e7d0297a880ef54e17f9874a9d7
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.1"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   matcher:
     dependency: transitive
     description:
@@ -268,10 +307,17 @@ packages:
     dependency: transitive
     description:
       name: mime
+<<<<<<< HEAD
       sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+=======
+      sha256: "801fd0b26f14a4a58ccb09d5892c3fbdeff209594300a542492cf13fba9d247a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.6"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   path:
     dependency: transitive
     description:
@@ -284,18 +330,32 @@ packages:
     dependency: "direct main"
     description:
       name: permission_handler
+<<<<<<< HEAD
       sha256: bc917da36261b00137bbc8896bf1482169cd76f866282368948f032c8c1caae1
       url: "https://pub.dev"
     source: hosted
     version: "12.0.1"
+=======
+      sha256: "59adad729136f01ea9e35a48f5d1395e25cba6cea552249ddbe9cf950f5d7849"
+      url: "https://pub.dev"
+    source: hosted
+    version: "11.4.0"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   permission_handler_android:
     dependency: transitive
     description:
       name: permission_handler_android
+<<<<<<< HEAD
       sha256: "1e3bc410ca1bf84662104b100eb126e066cb55791b7451307f9708d4007350e6"
       url: "https://pub.dev"
     source: hosted
     version: "13.0.1"
+=======
+      sha256: d3971dcdd76182a0c198c096b5db2f0884b0d4196723d21a866fc4cdea057ebc
+      url: "https://pub.dev"
+    source: hosted
+    version: "12.1.0"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   permission_handler_apple:
     dependency: transitive
     description:

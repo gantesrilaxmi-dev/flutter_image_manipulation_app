@@ -12,36 +12,3 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
-
-# Flutter/Dart
-.dart_tool/
-.packages
-.pub/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-.generated/
-
-# VS Code
-.vscode/
-
-# IntelliJ/Android Studio
-.idea/
-*.iml
-
-# macOS
-*.DS_Store
-
-# Windows build files
-windows/runner/Runner.exe
-windows/runner/Runner.vcxproj*
-windows/runner/Debug/
-windows/runner/Release/
-windows/runner/flutter_window.cpp
-windows/runner/flutter_window.h
-windows/runner/utils.cpp
-windows/runner/utils.h
-windows/runner/win32_window.cpp
-windows/runner/win32_window.h
-windows/runner/resources/
-

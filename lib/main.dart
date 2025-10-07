@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+<<<<<<< HEAD
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 
@@ -11,12 +12,32 @@ void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+=======
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+<<<<<<< HEAD
       title: 'Image Editor',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+=======
+      title: 'Image Manipulation',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       home: const HomePage(),
     );
   }
@@ -24,6 +45,10 @@ class MyApp extends StatelessWidget {
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -31,6 +56,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   File? _image;
   Uint8List? _processedImage;
+<<<<<<< HEAD
   Uint8List? _beforeEnhanceImage;
   Uint8List? _afterEnhanceImage;
   final picker = ImagePicker();
@@ -42,6 +68,15 @@ class _HomePageState extends State<HomePage> {
   final String blurUrl = "http://192.168.157.4:5000/blur";
   final String enhanceUrl = "http://192.168.157.4:5000/enhance";
   final String healthUrl = "http://192.168.157.4:5000/";
+=======
+  final picker = ImagePicker();
+  Timer? _debounce;
+  bool _isProcessing = false;
+
+  // Change this to your Flask server IP
+  final String apiUrl = "http://192.168.1.2:5000/edit";
+  final String healthUrl = "http://192.168.1.2:5000/";
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
 
   final Map<String, double> adjustments = {
     "brightness": 0,
@@ -79,6 +114,7 @@ class _HomePageState extends State<HomePage> {
     "vignette_highlights": 0,
   };
 
+<<<<<<< HEAD
   // Blur parameters
   String _blurType = 'linear';
   double _blurStrength = 51;
@@ -100,6 +136,8 @@ class _HomePageState extends State<HomePage> {
   double _handRadius = 50;
 
 
+=======
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   void showSnack(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -113,8 +151,17 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _requestPermissions() async {
     if (Platform.isAndroid) {
+<<<<<<< HEAD
       await Permission.photos.request();
       await Permission.storage.request();
+=======
+      final androidInfo = await Future.value(Platform.version);
+      if (androidInfo.contains('13') || int.tryParse(androidInfo.split('.').first) != null) {
+        await Permission.photos.request();
+      } else {
+        await Permission.storage.request();
+      }
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
     } else if (Platform.isIOS) {
       await Permission.photos.request();
     }
@@ -122,29 +169,56 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _checkApi() async {
     try {
+<<<<<<< HEAD
       final res = await http.get(Uri.parse(healthUrl)).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         showSnack("✓ Server connected successfully!", Colors.green);
+=======
+      final res = await http.get(Uri.parse(healthUrl)).timeout(
+        const Duration(seconds: 5),
+      );
+      if (res.statusCode == 200) {
+        showSnack("Server connected successfully!", Colors.green);
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       } else {
         showSnack("Server returned: ${res.statusCode}", Colors.orange);
       }
     } catch (e) {
+<<<<<<< HEAD
       showSnack("✗ Cannot connect to server. Check your IP address.", Colors.red);
+=======
+      showSnack("Cannot connect to server. Check your IP address.", Colors.red);
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
     }
   }
 
   Future<void> _pickImage() async {
     try {
       await _requestPermissions();
+<<<<<<< HEAD
       final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
+=======
+
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+      );
+
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       if (pickedFile != null) {
         setState(() {
           _image = File(pickedFile.path);
           _processedImage = null;
+<<<<<<< HEAD
           _beforeEnhanceImage = null;
           _afterEnhanceImage = null;
         });
         showSnack("✓ Image selected successfully!", Colors.green);
+=======
+        });
+        showSnack("Image selected successfully!", Colors.green);
+        _applyFilters();
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       }
     } catch (e) {
       showSnack("Error selecting image: ${e.toString()}", Colors.red);
@@ -153,6 +227,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _applyFilters() async {
     if (_image == null || _isProcessing) return;
+<<<<<<< HEAD
     setState(() => _isProcessing = true);
 
     try {
@@ -160,11 +235,31 @@ class _HomePageState extends State<HomePage> {
       request.files.add(await http.MultipartFile.fromPath("image", _image!.path));
 
       // Only send adjustments, no blur_strength here
+=======
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      var request = http.MultipartRequest("POST", Uri.parse(apiUrl));
+      request.files.add(
+        await http.MultipartFile.fromPath("image", _image!.path),
+      );
+
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       adjustments.forEach((key, value) {
         request.fields[key] = value.toString();
       });
 
+<<<<<<< HEAD
       var streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+=======
+      var streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       if (streamedResponse.statusCode == 200) {
         final bytes = await streamedResponse.stream.toBytes();
         if (mounted) {
@@ -174,15 +269,32 @@ class _HomePageState extends State<HomePage> {
           });
         }
       } else {
+<<<<<<< HEAD
         setState(() => _isProcessing = false);
         showSnack("Server error: ${streamedResponse.statusCode}", Colors.red);
       }
     } catch (e) {
       setState(() => _isProcessing = false);
+=======
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+          });
+        }
+        showSnack("Server error: ${streamedResponse.statusCode}", Colors.red);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       showSnack("Failed to process image: ${e.toString()}", Colors.red);
     }
   }
 
+<<<<<<< HEAD
   Future<void> _applyBlur() async {
     if (_image == null || _isProcessing) return;
     setState(() => _isProcessing = true);
@@ -297,10 +409,16 @@ class _HomePageState extends State<HomePage> {
 
     if (fileSizeMB >= 4.0) {
       showSnack("Image is already ${fileSizeMB.toStringAsFixed(2)} MB (≥4 MB)", Colors.orange);
+=======
+  Future<void> _saveImage() async {
+    if (_processedImage == null) {
+      showSnack("No edited image to save", Colors.orange);
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
       return;
     }
 
     try {
+<<<<<<< HEAD
       var request = http.MultipartRequest("POST", Uri.parse(enhanceUrl));
       request.files.add(await http.MultipartFile.fromPath("image", _image!.path));
       request.fields["enhance"] = adjustments["enhance"]!.toString();
@@ -373,22 +491,78 @@ class _HomePageState extends State<HomePage> {
         children: [
           Text("$label: ${adjustments[key]!.toStringAsFixed(1)}",
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+=======
+      await _requestPermissions();
+
+      final result = await ImageGallerySaver.saveImage(
+        _processedImage!,
+        quality: 100,
+        name: "edited_${DateTime.now().millisecondsSinceEpoch}",
+      );
+
+      if (result != null && result['isSuccess'] == true) {
+        showSnack("Image saved to gallery successfully!", Colors.green);
+      } else {
+        showSnack("Failed to save image", Colors.red);
+      }
+    } catch (e) {
+      showSnack("Error saving image: ${e.toString()}", Colors.red);
+    }
+  }
+
+  void _onSliderChange(String key, double value) {
+    setState(() {
+      adjustments[key] = value;
+    });
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _applyFilters();
+    });
+  }
+
+  Widget buildSlider(
+      String label,
+      String key, {
+        double min = -100,
+        double max = 100,
+        int? divisions,
+      }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "$label: ${adjustments[key]!.toStringAsFixed(1)}",
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
           Slider(
             value: adjustments[key]!,
             min: min,
             max: max,
+<<<<<<< HEAD
             divisions: 100,
             onChanged: (val) {
               setState(() => adjustments[key] = val);
               if (_debounce?.isActive ?? false) _debounce!.cancel();
               _debounce = Timer(const Duration(milliseconds: 300), _applyFilters);
             },
+=======
+            divisions: divisions ?? 200,
+            label: adjustments[key]!.toStringAsFixed(1),
+            onChanged: _image == null
+                ? null
+                : (val) => _onSliderChange(key, val),
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
           ),
         ],
       ),
     );
   }
 
+<<<<<<< HEAD
   Widget _buildManipulationTab() {
     return SingleChildScrollView(
       child: Column(
@@ -604,6 +778,12 @@ class _HomePageState extends State<HomePage> {
         ),
       ],
     );
+=======
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
   }
 
   @override
@@ -611,6 +791,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Image Editor"),
+<<<<<<< HEAD
         actions: [
           IconButton(
             onPressed: _checkApi,
@@ -668,11 +849,45 @@ class _HomePageState extends State<HomePage> {
                       foregroundColor: _selectedTab == 2 ? Colors.white : Colors.black,
                     ),
                     child: const Text("Blurring"),
+=======
+        elevation: 2,
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _checkApi,
+                  icon: const Icon(Icons.wifi, size: 18),
+                  label: const Text("Check API"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.photo_library, size: 18),
+                  label: const Text("Pick Image"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _processedImage == null ? null : _saveImage,
+                  icon: const Icon(Icons.save, size: 18),
+                  label: const Text("Save"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
                   ),
                 ),
               ],
             ),
           ),
+<<<<<<< HEAD
           // Image display with gesture handling
           if (_image != null)
             Expanded(
@@ -697,11 +912,45 @@ class _HomePageState extends State<HomePage> {
                 }),
               ),
             ),
+=======
+          Container(
+            height: 250,
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: _processedImage != null
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                _processedImage!,
+                fit: BoxFit.contain,
+              ),
+            )
+                : _image != null
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                _image!,
+                fit: BoxFit.contain,
+              ),
+            )
+                : const Center(
+              child: Text(
+                "No image selected",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ),
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
           if (_isProcessing)
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: LinearProgressIndicator(),
             ),
+<<<<<<< HEAD
           // Controls area
           Expanded(
             flex: 3,
@@ -710,9 +959,97 @@ class _HomePageState extends State<HomePage> {
                 : _selectedTab == 1
                 ? _buildEnhancementTab()
                 : _buildBlurTab(),
+=======
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  ExpansionTile(
+                    initiallyExpanded: true,
+                    title: const Text(
+                      "Main Adjustments",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      buildSlider("Brightness", "brightness"),
+                      buildSlider("Contrast", "contrast"),
+                      buildSlider("Saturation", "saturation"),
+                      buildSlider("Exposure", "exposure"),
+                      buildSlider("Highlights", "highlights"),
+                      buildSlider("Shadows", "shadows"),
+                      buildSlider("Vibrance", "vibrance"),
+                      buildSlider("Temperature", "temperature"),
+                      buildSlider("Hue", "hue"),
+                      buildSlider("Fading", "fading"),
+                      buildSlider("Enhance", "enhance"),
+                      buildSlider("Smoothness", "smoothness"),
+                      buildSlider("Ambiance", "ambiance"),
+                      buildSlider("Noise", "noise"),
+                      buildSlider("Color Noise", "color_noise"),
+                      buildSlider("Inner Spotlight", "inner_spotlight"),
+                      buildSlider("Outer Spotlight", "outer_spotlight"),
+                      buildSlider("Tint", "tint", min: -100, max: 100),
+                    ],
+                  ),
+                  ExpansionTile(
+                    title: const Text(
+                      "Effects",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      buildSlider("Texture", "texture"),
+                      buildSlider("Clarity", "clarity"),
+                      buildSlider("Dehaze", "dehaze"),
+                    ],
+                  ),
+                  ExpansionTile(
+                    title: const Text(
+                      "Grain",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      buildSlider("Amount", "grain_amount"),
+                      buildSlider("Size", "grain_size", min: 1, max: 10, divisions: 9),
+                      buildSlider("Roughness", "grain_roughness", min: 1, max: 10, divisions: 9),
+                    ],
+                  ),
+                  ExpansionTile(
+                    title: const Text(
+                      "Sharpening",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      buildSlider("Amount", "sharpen_amount"),
+                      buildSlider("Radius", "sharpen_radius", min: 1, max: 10, divisions: 9),
+                      buildSlider("Detail", "sharpen_detail", min: 1, max: 10, divisions: 9),
+                      buildSlider("Masking", "sharpen_masking", min: 0, max: 255, divisions: 255),
+                    ],
+                  ),
+                  ExpansionTile(
+                    title: const Text(
+                      "Vignette",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    children: [
+                      buildSlider("Amount", "vignette_amount"),
+                      buildSlider("Midpoint", "vignette_midpoint", min: 0, max: 100),
+                      buildSlider("Feather", "vignette_feather", min: 0, max: 100),
+                      buildSlider("Roundness", "vignette_roundness", min: -100, max: 100),
+                      buildSlider("Highlights", "vignette_highlights", min: 0, max: 100),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
           ),
         ],
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e

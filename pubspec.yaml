@@ -1,25 +1,44 @@
+<<<<<<< HEAD
 name: image_manipulation_app
 description: A Flutter app for image editing via a Flask backend.
 
 publish_to: 'none' # Remove this line if you want to publish to pub.dev
+=======
+name: camme
+description: "A new Flutter project."
+publish_to: 'none' # Prevent accidental publishing
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
 
 version: 1.0.0+1
 
 environment:
+<<<<<<< HEAD
   sdk: ">=3.0.0 <4.0.0"
+=======
+  sdk: ">=3.9.0 <4.0.0"
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
 
 dependencies:
   flutter:
     sdk: flutter
+<<<<<<< HEAD
 
   cupertino_icons: ^1.0.5
   http: ^1.2.2
   image_picker: ^1.1.0
   permission_handler: ^12.0.1
+=======
+  cupertino_icons: ^1.0.8
+  http: ^1.1.0
+  image_picker: ^0.8.7+5
+  permission_handler: ^11.3.0
+  image_gallery_saver: 2.0.3   # Compatible version
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+<<<<<<< HEAD
   flutter_lints: ^2.0.1
 
 flutter:
@@ -28,3 +47,9 @@ flutter:
   assets:
   # Add any local assets if needed
   # - assets/images/
+=======
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+>>>>>>> 9bd1e0779a8086af31ef5090d4d9b29499623a2e
