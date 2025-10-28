@@ -19,6 +19,8 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
+import 'package:http_parser/http_parser.dart';
+
 
 
 List<CameraDescription> cameras = [];
@@ -61,7 +63,7 @@ class ImageFilterService {
     try {
       var request = http.MultipartRequest(
         "POST",
-        Uri.parse("http://192.168.1.8:5000/edit"),
+        Uri.parse("http://192.168.1.2:5000/edit"),
       );
 
       // Add image file
@@ -267,10 +269,10 @@ class _HomePageState extends State<HomePage> {
   double _handRadius = 50;
 
 
-  final String apiUrl = "http://192.168.1.8:5000/edit";
-  final String blurUrl = "http://192.168.1.8:5000/blur";
-  final String enhanceUrl = "http://192.168.1.8:5000/enhance";
-  final String healthUrl = "http://192.168.1.8:5000/";
+  final String apiUrl = "http://192.168.1.2:5000/edit";
+  final String blurUrl = "http://192.168.1.2:5000/blur";
+  final String enhanceUrl = "http://192.168.1.2:5000/enhance";
+  final String healthUrl = "http://192.168.1.2:5000/";
 
   @override
   void initState() {
@@ -639,6 +641,7 @@ class _HomePageState extends State<HomePage> {
               value: adjustments[key] ?? 0.0,
               min: min,
               max: max,
+              divisions: ((max - min) * 100).toInt(), // Precision: 0.01 steps
               onChanged: (val) {
                 setState(() {
                   adjustments[key] = val;
@@ -658,8 +661,11 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           SizedBox(
-            width: 40,
-            child: Text(((adjustments[key] ?? 0.0)).toStringAsFixed(0)),
+            width: 50, // Increased width to accommodate 2 decimals
+            child: Text(
+              (adjustments[key] ?? 0.0).toStringAsFixed(2), // ⭐ CHANGED: 2 decimals
+              style: const TextStyle(fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -1354,7 +1360,7 @@ class _EditImagePageState extends State<EditImagePage> {
     try {
       var request = http.MultipartRequest(
         "POST",
-        Uri.parse("http://192.168.1.8:5000/edit"),
+        Uri.parse("http://192.168.1.2:5000/edit"),
       );
 
       request.files.add(await http.MultipartFile.fromPath("image", imageFile.path));
@@ -1560,6 +1566,7 @@ class _EditImagePageState extends State<EditImagePage> {
 }
 
 // ------------------ Filter Gallery Screen ------------------
+// Replace the FilterGalleryScreen class with this enhanced version
 
 class FilterGalleryScreen extends StatefulWidget {
   final File? image;
@@ -1577,10 +1584,12 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
   final TextEditingController idController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  // ⭐ STATE VARIABLES
+  // State variables
   File? _selectedImage;
   Map<String, dynamic>? _selectedFilter;
+  Map<String, dynamic> _adjustedParams = {}; // Store adjusted values
   GlobalKey _previewKey = GlobalKey();
+  bool _showSliders = false;
 
   @override
   void initState() {
@@ -1588,7 +1597,7 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     fetchAllFilters();
   }
 
-  // ---------------- Fetch All Filters ----------------
+  // Fetch All Filters
   Future<void> fetchAllFilters() async {
     setState(() => _loading = true);
     try {
@@ -1631,7 +1640,7 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     }
   }
 
-  // ---------------- Fetch Filter by ID ----------------
+  // Fetch Filter by ID
   Future<void> fetchById(String imageId) async {
     if (imageId.isEmpty) return;
     setState(() => _loading = true);
@@ -1640,9 +1649,6 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
       final uri = Uri.parse(
           "https://new-camme-backend.onrender.com/api/v1/image/get-by-id?imageId=${Uri.encodeComponent(imageId)}");
       final response = await http.get(uri).timeout(const Duration(seconds: 180));
-
-      debugPrint("📡 Response status: ${response.statusCode}");
-      debugPrint("📡 Raw response data: ${response.body}");
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -1660,9 +1666,6 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
               }
             ];
           });
-
-          debugPrint("✅ Filter fetched: ${filterData["filter_name"]}");
-          debugPrint("🖼 Image URL: ${data["image_data"]}");
         } else {
           showSnack("No filter found for this ID", Colors.orange);
           filters = [];
@@ -1679,7 +1682,115 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     }
   }
 
-  // ---------------- Utility: SnackBar ----------------
+  // Save Updated Filter to Database
+  Future<void> _saveUpdatedFilter() async {
+    if (_selectedFilter == null || _selectedImage == null) return;
+
+    setState(() => _loading = true);
+    try {
+      // First upload the filtered image
+      final bytes = await _captureFilteredImage();
+      if (bytes == null) {
+        showSnack("Failed to capture filtered image", Colors.red);
+        return;
+      }
+
+      // Upload image to get URL
+      final imageUrl = await _uploadImageToCloud(bytes);
+      if (imageUrl == null) {
+        showSnack("Failed to upload image", Colors.red);
+        return;
+      }
+
+      // Generate new filter name
+      final newFilterName = _generateFilterName(_adjustedParams);
+
+      // Send to backend
+      final payload = {
+        "image_url": imageUrl,
+        "filter_data": {
+          "filter_name": newFilterName,
+          "params": _adjustedParams,
+        }
+      };
+
+      final response = await http.post(
+        Uri.parse("https://new-camme-backend.onrender.com/api/v1/image/process"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 180));
+
+      if (response.statusCode == 200) {
+        showSnack("✅ Filter saved successfully!", Colors.green);
+        fetchAllFilters(); // Refresh the list
+      } else {
+        showSnack("Failed to save filter: ${response.statusCode}", Colors.red);
+      }
+    } catch (e) {
+      showSnack("Error saving filter: $e", Colors.red);
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  // Generate filter name
+  String _generateFilterName(Map<String, dynamic> params) {
+    List<String> parts = [];
+    params.forEach((key, value) {
+      if (value is num && value != 0) {
+        String readableKey = key[0].toUpperCase() + key.substring(1).replaceAll('_', ' ');
+        parts.add("$readableKey ${value.toStringAsFixed(2)}");
+      }
+    });
+
+    String hash = md5
+        .convert(utf8.encode(jsonEncode(params) + DateTime.now().toIso8601String()))
+        .toString()
+        .substring(0, 6);
+
+    return "Custom Filter (${parts.isEmpty ? 'Default' : parts.take(2).join(', ')}) [$hash]";
+  }
+
+  // Capture filtered image as bytes
+  Future<Uint8List?> _captureFilteredImage() async {
+    try {
+      RenderRepaintBoundary boundary =
+      _previewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint("Error capturing image: $e");
+      return null;
+    }
+  }
+
+  // Upload image to cloud
+  Future<String?> _uploadImageToCloud(Uint8List imageBytes) async {
+    try {
+      var request = http.MultipartRequest(
+        "POST",
+        Uri.parse("https://new-camme-backend.onrender.com/api/v1/upload-file"),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes("file", imageBytes, filename: 'image.jpg'),
+      );
+
+      var streamedResponse = await request.send();
+      final responseBody = await streamedResponse.stream.bytesToString();
+
+      if (streamedResponse.statusCode == 200) {
+        final data = jsonDecode(responseBody);
+        final url = data['data']?['fileUrl'];
+        return url;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Upload error: $e");
+      return null;
+    }
+  }
+
   void showSnack(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1687,7 +1798,6 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     );
   }
 
-  // ---------------- Utility: Network Image ----------------
   Widget buildNetworkImage(String url) {
     if (url.isEmpty) {
       return const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.grey));
@@ -1705,7 +1815,6 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     );
   }
 
-  // ---------------- Pick Image Source ----------------
   void _showImageSourcePicker(Map<String, dynamic> filter) {
     showModalBottomSheet(
       context: context,
@@ -1733,7 +1842,6 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     );
   }
 
-  // ---------------- Pick Image & Apply Filter ----------------
   Future<void> _pickImage(ImageSource source, Map<String, dynamic> filter) async {
     Navigator.pop(context);
     final XFile? picked = await _picker.pickImage(source: source);
@@ -1742,20 +1850,15 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
     setState(() {
       _selectedImage = File(picked.path);
       _selectedFilter = filter;
+      _adjustedParams = Map<String, dynamic>.from(filter["params"] ?? {});
+      _showSliders = false;
     });
 
-    debugPrint("📸 Picked image: ${picked.path}");
-    debugPrint("🎨 Applying filter: ${filter["filter_name"]}");
-    debugPrint("🎨 Filter params: ${filter["params"]}");
     showSnack("Filter '${filter["filter_name"]}' applied!", Colors.blue);
   }
 
-  // ---------------- Build Color Filter from Params ----------------
   ColorFilter _buildColorFilter(Map<String, dynamic> params) {
-    debugPrint("🔍 Building filter with params: $params");
-
     if (params.isEmpty) {
-      // No filter
       return const ColorFilter.matrix([
         1, 0, 0, 0, 0,
         0, 1, 0, 0, 0,
@@ -1764,36 +1867,28 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
       ]);
     }
 
-    // Extract safely
-    double brightness = (params['brightness'] ?? 0).toDouble(); // -100–100
-    double contrast = (params['contrast'] ?? 0).toDouble();     // -100–100
-    double saturation = (params['saturation'] ?? 0).toDouble(); // -100–100
-    double exposure = (params['exposure'] ?? 0).toDouble();     // -100–100
+    double brightness = (params['brightness'] ?? 0).toDouble();
+    double contrast = (params['contrast'] ?? 0).toDouble();
+    double saturation = (params['saturation'] ?? 0).toDouble();
+    double exposure = (params['exposure'] ?? 0).toDouble();
     double temperature = (params['temperature'] ?? 50).toDouble();
     double tint = (params['tint'] ?? 50).toDouble();
-    bool grayscale = params['grayscale'] == true;
-    bool invert = params['invert'] == true;
 
-    // Normalize safely
-    double b = brightness / 100.0; // -1 to +1
-    double c = 1 + (contrast / 200.0); // 0.5–1.5
-    double s = 1 + (saturation / 100.0); // 0–2
-    double e = exposure / 200.0; // -0.5–0.5
+    double b = brightness / 100.0;
+    double c = 1 + (contrast / 200.0);
+    double s = 1 + (saturation / 100.0);
+    double e = exposure / 200.0;
 
-    // Warm/cool tones
     double rMult = 1 + ((temperature - 50) / 200.0);
     double gMult = 1 + ((tint - 50) / 200.0);
     double bMult = 1 - ((temperature - 50) / 200.0);
 
-    // Clamp to avoid blowout
     rMult = rMult.clamp(0.5, 1.5);
     gMult = gMult.clamp(0.5, 1.5);
     bMult = bMult.clamp(0.5, 1.5);
 
-    // Brightness/exposure offset
-    double offset = (b + e) * 128.0; // reduced intensity
+    double offset = (b + e) * 128.0;
 
-    // Base matrix
     List<double> matrix = [
       c * s * rMult, 0, 0, 0, offset,
       0, c * s * gMult, 0, 0, offset,
@@ -1801,32 +1896,9 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
       0, 0, 0, 1, 0,
     ];
 
-    // Grayscale override
-    if (grayscale) {
-      matrix = [
-        0.33, 0.59, 0.11, 0, offset,
-        0.33, 0.59, 0.11, 0, offset,
-        0.33, 0.59, 0.11, 0, offset,
-        0, 0, 0, 1, 0,
-      ];
-    }
-
-    // Invert override
-    if (invert) {
-      matrix = [
-        -1, 0, 0, 0, 255,
-        0, -1, 0, 0, 255,
-        0, 0, -1, 0, 255,
-        0, 0, 0, 1, 0,
-      ];
-    }
-
-    debugPrint("✅ Final clamped matrix: $matrix");
     return ColorFilter.matrix(matrix);
   }
 
-
-  // ---------------- Save Image to Gallery ----------------
   Future<void> _saveFilteredImage() async {
     try {
       RenderRepaintBoundary boundary =
@@ -1842,241 +1914,380 @@ class _FilterGalleryScreenState extends State<FilterGalleryScreen> {
       );
 
       showSnack("✅ Saved to gallery!", Colors.green);
-      debugPrint("💾 Saved: $result");
     } catch (e) {
       showSnack("❌ Failed to save: $e", Colors.red);
     }
   }
 
-  // ---------------- UI ----------------
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("🎨 Saved Filters")),
-      body: Column(
+  // Build adjustable slider
+  Widget _buildAdjustableSlider(String label, String key, {double min = -100, double max = 100}) {
+    // Get value and clamp it to the valid range
+    double rawValue = (_adjustedParams[key] ?? 0).toDouble();
+    double currentValue = rawValue.clamp(min, max);
+
+    // If value was out of range, update it
+    if (rawValue != currentValue) {
+      _adjustedParams[key] = currentValue;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
+      child: Row(
         children: [
-          // ⭐ Show Filtered Image Preview
-          if (_selectedImage != null && _selectedFilter != null)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: RepaintBoundary(
-                key: _previewKey,
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    ColorFiltered(
-                      colorFilter: _buildColorFilter(_selectedFilter!['params'] ?? {}),
-                      child: Image.file(
-                        _selectedImage!,
-                        height: 300,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    // Close button at top right
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black54,
-                          padding: const EdgeInsets.all(8),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _selectedImage = null;
-                            _selectedFilter = null;
-                          });
-                          showSnack("Image cleared. Select a new filter!", Colors.blue);
-                        },
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 12,
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black87,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "Filter: ${_selectedFilter!['filter_name']}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.photo_library, size: 18),
-                                label: const Text("Change Image"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                onPressed: () => _showImageSourcePicker(_selectedFilter!),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.save_alt, size: 18),
-                                label: const Text("Save"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                onPressed: _saveFilteredImage,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+          SizedBox(width: 100, child: Text(label, style: const TextStyle(fontSize: 12))),
+          Expanded(
+            child: Slider(
+              value: currentValue,
+              min: min,
+              max: max,
+              divisions: ((max - min) * 10).toInt(),
+              onChanged: (val) {
+                setState(() {
+                  _adjustedParams[key] = val;
+                });
+              },
+            ),
+          ),
+          SizedBox(
+            width: 50,
+            child: Text(
+              currentValue.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSliderPanel() {
+    return Container(
+      height: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Text(
+            "Adjust Filter",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const Divider(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildAdjustableSlider("Brightness", "brightness", min: -100, max: 100),
+                  _buildAdjustableSlider("Contrast", "contrast", min: -100, max: 100),
+                  _buildAdjustableSlider("Saturation", "saturation", min: -100, max: 100),
+                  _buildAdjustableSlider("Exposure", "exposure", min: -100, max: 100),
+                  _buildAdjustableSlider("Temperature", "temperature", min: -100, max: 100),
+                  _buildAdjustableSlider("Tint", "tint", min: -100, max: 100),
+                  _buildAdjustableSlider("Highlights", "highlights", min: -100, max: 100),
+                  _buildAdjustableSlider("Shadows", "shadows", min: -100, max: 100),
+                  _buildAdjustableSlider("Vibrance", "vibrance", min: -100, max: 100),
+                  _buildAdjustableSlider("Hue", "hue", min: -100, max: 100),
+                  _buildAdjustableSlider("Fading", "fading", min: 0, max: 100),
+                  _buildAdjustableSlider("Enhance", "enhance", min: -100, max: 100),
+                  _buildAdjustableSlider("Smoothness", "smoothness", min: -100, max: 100),
+                  _buildAdjustableSlider("Texture", "texture", min: 0, max: 100),
+                  _buildAdjustableSlider("Clarity", "clarity", min: 0, max: 100),
+                  _buildAdjustableSlider("Dehaze", "dehaze", min: 0, max: 100),
+                ],
               ),
             ),
-
-          // Existing Image (From widget.image)
-          if (widget.image != null)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Image.file(widget.image!,
-                  height: 150, width: double.infinity, fit: BoxFit.cover),
-            ),
-
-          // Toggle Buttons
+          ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.close),
+                    label: const Text("Cancel"),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
                     onPressed: () {
                       setState(() {
-                        getAll = true;
-                        fetchAllFilters();
+                        _adjustedParams = Map<String, dynamic>.from(_selectedFilter!["params"] ?? {});
+                        _showSliders = false;
                       });
                     },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: getAll ? Colors.blue : Colors.grey),
-                    child: const Text("Get All Filters"),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        getAll = false;
-                        if (idController.text.isNotEmpty) {
-                          fetchById(idController.text);
-                        }
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: !getAll ? Colors.blue : Colors.grey),
-                    child: const Text("Get By ID"),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.cloud_upload),
+                    label: const Text("Save to DB"),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                    onPressed: _saveUpdatedFilter,
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          if (!getAll)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: TextField(
-                controller: idController,
-                decoration: InputDecoration(
-                  labelText: "Enter Filter ID",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: () {
-                      if (idController.text.isNotEmpty) fetchById(idController.text);
-                    },
-                  ),
-                ),
-              ),
-            ),
-
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : filters.isEmpty
-                ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.filter_none, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text("No filters found"),
-                ],
-              ),
-            )
-                : GridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.75,
-              ),
-              itemCount: filters.length,
-              itemBuilder: (context, index) {
-                final filter = filters[index];
-                final isSelected = _selectedFilter != null &&
-                    _selectedFilter!['_id'] == filter['_id'];
-
-                return InkWell(
-                  onTap: () => _showImageSourcePicker(filter),
-                  child: Card(
-                    elevation: isSelected ? 8 : 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: isSelected
-                          ? const BorderSide(color: Colors.blue, width: 3)
-                          : BorderSide.none,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("🎨 Saved Filters")),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              if (_selectedImage != null && _selectedFilter != null)
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: RepaintBoundary(
+                    key: _previewKey,
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
                       children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(12)),
-                            child: buildNetworkImage(
-                                filter["image_url"] ?? ""),
+                        ColorFiltered(
+                          colorFilter: _buildColorFilter(_adjustedParams),
+                          child: Image.file(
+                            _selectedImage!,
+                            height: 300,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            filter["filter_name"] ?? "Unnamed",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: isSelected ? Colors.blue : Colors.black,
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black54,
+                              padding: const EdgeInsets.all(8),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            onPressed: () {
+                              setState(() {
+                                _selectedImage = null;
+                                _selectedFilter = null;
+                                _showSliders = false;
+                              });
+                            },
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 12,
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  "Filter: ${_selectedFilter!['filter_name']}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.tune, size: 18),
+                                    label: const Text("Adjust"),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                    onPressed: () {
+                                      setState(() => _showSliders = !_showSliders);
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.photo_library, size: 18),
+                                    label: const Text("Change"),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                    onPressed: () => _showImageSourcePicker(_selectedFilter!),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.save_alt, size: 18),
+                                    label: const Text("Save"),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                    onPressed: _saveFilteredImage,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            getAll = true;
+                            fetchAllFilters();
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: getAll ? Colors.blue : Colors.grey),
+                        child: const Text("Get All Filters"),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            getAll = false;
+                            if (idController.text.isNotEmpty) {
+                              fetchById(idController.text);
+                            }
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: !getAll ? Colors.blue : Colors.grey),
+                        child: const Text("Get By ID"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (!getAll)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: TextField(
+                    controller: idController,
+                    decoration: InputDecoration(
+                      labelText: "Enter Filter ID",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: () {
+                          if (idController.text.isNotEmpty) fetchById(idController.text);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filters.isEmpty
+                    ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.filter_none, size: 80, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text("No filters found"),
+                    ],
+                  ),
+                )
+                    : GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemCount: filters.length,
+                  itemBuilder: (context, index) {
+                    final filter = filters[index];
+                    final isSelected = _selectedFilter != null &&
+                        _selectedFilter!['_id'] == filter['_id'];
+
+                    return InkWell(
+                      onTap: () => _showImageSourcePicker(filter),
+                      child: Card(
+                        elevation: isSelected ? 8 : 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: isSelected
+                              ? const BorderSide(color: Colors.blue, width: 3)
+                              : BorderSide.none,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius:
+                                const BorderRadius.vertical(top: Radius.circular(12)),
+                                child: buildNetworkImage(filter["image_url"] ?? ""),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                filter["filter_name"] ?? "Unnamed",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isSelected ? Colors.blue : Colors.black,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
+
+          // Slider Panel Overlay
+          if (_showSliders)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildSliderPanel(),
+            ),
         ],
       ),
     );
@@ -2387,7 +2598,7 @@ class _PhotographyScreenState extends State<PhotographyScreen> {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse("http://192.168.1.8:5001/capture"), // use your system's IP if testing on device
+        Uri.parse("http://192.168.1.2:5001/capture"), // use your system's IP if testing on device
       );
       request.files.add(await http.MultipartFile.fromPath('image', file.path));
 
